@@ -86,23 +86,30 @@ for(i in 1:nrow(InitPop)){
 }
 
 # Finally, plot the results together
-InnerMar <- c(0, 0, 0, 0)
-OuterMar <- c(5, 6, 1, 1)
+# Location
+InnerMar <- c(0.5, 0.5, 0.5, 0.5)
+OuterMar <- c(3, 5, 0.5, 0.5)
+LetterAdj <- 0.025
+LetterLine <- -1.25
+xLabLine <- 2
+yLabLine1 <- 3.5
+yLabLine2 <- 2
+# Size
+LineWidth <- 1.25
+AxisSize <- 1
+LabelSize <- 1
+LegendSize <- 1
+FigWidth <- 6
+FigHeight <- 2
+# Range
 xRange <- c(1, 25)
 yRange <- c(-35, 35)
+# Color
 CompColSeq <- c(rgb(red = 0.9, green = 0.6, blue = 0), rgb(red = 0, green = 0, blue = 0),
                 rgb(red = 0, green = 0.45, blue = 0.7))
-MatingWordVec <- c("Alpha Pair Monogamy", "Monogamy", "Polygynandry")
-MateWordAdj <- 0.95
-MateWordLine <- -2.1
-LineWidth <- 1.25
-AxisSize <- 1.5
-LabelSize <- 1.25
-xLabLine <- 3
-yLabLine <- 3.75
-LegendSize <- 1.5
-
-# Create a series of x coordinates to avoid overlap
+# Labels
+LetterVec <- c("a", "b", "c")
+# Offset x coordinates to reduce overlap
 Adj <- 0.25
 xSeqs <- matrix(NA, nrow = nrow(InitPop), ncol = length(TauSeq))
 xSeqs[1,] <- TauSeq - Adj 
@@ -110,8 +117,6 @@ xSeqs[2,] <- TauSeq
 xSeqs[3,] <- TauSeq + Adj
 
 FigName <- "Figures/EffectOfGroupFormation.pdf"
-FigWidth <- 12
-FigHeight <- 4
 pdf(file = FigName, width = FigWidth, height = FigHeight, onefile = FALSE, paper = "special")
      par(mar = InnerMar, oma = OuterMar, mfrow = c(1,3))
      # Plot the graphs in order of mating system
@@ -137,18 +142,19 @@ pdf(file = FigName, width = FigWidth, height = FigHeight, onefile = FALSE, paper
           }
           # Add a horizontal line at 0
           abline(h = 0, col = "grey", lwd = LineWidth)
-          # Add the mating system text
-          mtext(MatingWordVec[ms], side = 3, line = MateWordLine, adj = MateWordAdj,
+          # Add the graph letter
+          mtext(LetterVec[ms], side = 3, line = LetterLine, adj = LetterAdj,
                 cex = LabelSize)
           # Add the legend to the middle plot
           if(ms == 2){
-               legend(x = "topleft", bty = "n", legend = c("Female biased", "Even", "Male biased"),
+               legend(x = "topright", bty = "n", legend = c("Female biased", "Even", "Male biased"),
                       col = CompColSeq, cex = LegendSize, pch = 1)
           }
      }
      # Add the axis labels
      mtext("Group size", side = 1, outer = TRUE, line = xLabLine, cex = LabelSize)
-     mtext("Difference in expected abundance", side = 2, outer = TRUE, line = yLabLine, cex = LabelSize)
+     mtext("Difference in", side = 2, outer = TRUE, line = yLabLine1, cex = LabelSize)
+     mtext(expression(paste("expected ", N[t+1])), side = 2, outer = TRUE, line = yLabLine2, cex = LabelSize)
 dev.off()
 
 

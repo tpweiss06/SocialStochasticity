@@ -2,7 +2,7 @@
 #    different simulations
 
 DeterministicK <- 100
-R0 <- 2.1
+R0 <- 1.25
 # Calculate alpha according to the carrying capacity and growth rate
 alpha <- log(R0) / DeterministicK
 z <- 0.5

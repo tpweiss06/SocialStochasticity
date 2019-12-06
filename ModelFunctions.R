@@ -3,7 +3,7 @@
 #    dynamics of social species under different mating systems
 
 # ---------------------------------------------------------------- MatingFemales
-# This function determines the number of mating females in a population
+# This function determines the number of mating females in each group of a population
 #    according to the mating system and group structure.
 # Arguments:
 #    ms -- The mating system of the population
@@ -23,7 +23,7 @@ MatingFemales <- function(ms, Ng, GroupFemales, GroupMales){
                MatingFemales[i] <- ifelse(GroupMales[i] > 0, GroupFemales[i], 0)
           }
      }
-     return(sum(MatingFemales))
+     return(MatingFemales)
 }
 
 # ------------------------------------------------------------------- FormGroups
@@ -34,10 +34,16 @@ MatingFemales <- function(ms, Ng, GroupFemales, GroupMales){
 #    Tau -- the size of groups to be formed
 #    Females and Males -- The respective number of each in the total population
 #    Stochastic -- A boolean indicator for whether group formation should be purely
-#         stochastic (i.e. via unbiased random sampling) or biased towards forming
-#         groups with a given sex ratio
-#    z -- The sex ratio to work towards if Stochastic is set to FALSE
-FormGroups <- function(Tau, Females, Males, Stochastic, z = NA){
+#         stochastic (i.e. via unbiased random sampling) or deterministc (forming
+#         as many groups as possible at the expected sex ratio)
+#    z -- The sex ratio to determine group formation if Stochastic is set to FALSE
+#    RemainderMortality -- A boolean indicator determining the fate of remaining
+#              individuals after forming as many groups as possible of size tau.
+#              If set to TRUE, then remaining individuals perish (i.e. group
+#              membership confers a survival advantage). If set to FALSE, then
+#              remaining individuals form a group of size < tau and are allowed
+#              to reproduce.
+FormGroups <- function(Tau, Females, Males, Stochastic, z = NA, RemainderMortality){
      # Set the total population size
      N <- Females + Males
      if(Stochastic){
@@ -53,15 +59,26 @@ FormGroups <- function(Tau, Females, Males, Stochastic, z = NA){
           UngroupedFems <- Females
           UngroupedMales <- Males
           UngroupedPop <- c(rep(1, UngroupedFems), rep(0, UngroupedMales))
-          for(i in 1:Ng){
-               CurGroup <- sample(UngroupedPop, size = Tau, replace = FALSE)
-               CurFemales <- sum(CurGroup)
-               CurMales <- Tau - CurFemales
-               GroupFemales[i] <- GroupFemales[i] + CurFemales
-               GroupMales[i] <- GroupMales[i] + CurMales
-               UngroupedFems <- UngroupedFems - CurFemales
-               UngroupedMales <- UngroupedMales - CurMales
-               UngroupedPop <- c(rep(1, UngroupedFems), rep(0, UngroupedMales))
+          # Only use the stochastic sampling if we have at least Tau individuals
+          if(N >= Tau){
+               for(i in 1:Ng){
+                    CurGroup <- sample(UngroupedPop, size = Tau, replace = FALSE)
+                    CurFemales <- sum(CurGroup)
+                    CurMales <- Tau - CurFemales
+                    GroupFemales[i] <- GroupFemales[i] + CurFemales
+                    GroupMales[i] <- GroupMales[i] + CurMales
+                    UngroupedFems <- UngroupedFems - CurFemales
+                    UngroupedMales <- UngroupedMales - CurMales
+                    UngroupedPop <- c(rep(1, UngroupedFems), rep(0, UngroupedMales))
+               } 
+          }
+          # If we impose mortality on remaining individuals unable to form a full
+          #    group, then we are done after this step. Otherwise, we put them
+          #    in a final group of size < tau
+          if(RemainderMortality == FALSE){
+               GroupFemales <- c(GroupFemales, UngroupedFems)
+               GroupMales <- c(GroupMales, UngroupedMales)
+               Ng <- Ng + 1
           }
      }else{
           # Determine the expected number of females and males per group
@@ -82,21 +99,44 @@ FormGroups <- function(Tau, Females, Males, Stochastic, z = NA){
           FemRemaining <- Females - Ng1 * ExpectedFem
           MaleRemaining <- Males - Ng1 * ExpectedMale
           
-          # Now check to see if there are enough individuals to form one final 
-          #    group with the remainders, regardless of sex ratio. All other 
-          #    remaining individuals are disgarded after this step even if they
-          #    could form a group since that group would be composed of only one
-          #    sex and hence have no reproductive success.
-          if( (FemRemaining > 0) & (MaleRemaining > 0) & ((FemRemaining + MaleRemaining) > Tau) ){
-               Ng <- Ng1 + 1
-               if(FemGroups > MaleGroups){
-                    MaleFinal <- MaleRemaining
-                    FemFinal <- Tau - MaleFinal
+          # After forming all groups possible at the expected sex ratio, determine
+          #    the number of remaining males and females and place them in a
+          #    final group (or not depending on RemainderMortality)
+          # First check that there is at least one male and female remaining
+          if( (FemRemaining > 0) & (MaleRemaining > 0)){
+               # Next check if there are more or less than tau individuals
+               if( (FemRemaining + MaleRemaining) >= Tau ){
+                    # If there are at least tau individuals left, then we can
+                    #    form exactly one more group of the correct size. There
+                    #    may still be remaining individuals after this step, but
+                    #    they will all be of the same sex and therefore have no
+                    #    reproductive potential if they form their own group
+                    Ng <- Ng1 + 1
+                    if(FemGroups > MaleGroups){
+                         MaleFinal <- MaleRemaining
+                         FemFinal <- Tau - MaleFinal
+                    } else{
+                         FemFinal <- FemRemaining
+                         MaleFinal <- Tau - FemFinal
+                    }
                } else{
-                    FemFinal <- FemRemaining
-                    MaleFinal <- Tau - FemFinal
+                    if(RemainderMortality == TRUE){
+                         # If we  impose mortality on individuals unable to form
+                         #    a group of size tau, then we are done and have our 
+                         #    final groups
+                         Ng <- Ng1
+                    } else{
+                         # Otherwise, we place remaining individuals into a final
+                         #    group of size < tau
+                         MaleFinal <- MaleRemaining
+                         FemFinal <- FemRemaining
+                         Ng <- Ng1 + 1
+                    }
                }
           } else{
+               # If there are no remaining females or no remaining males,
+               #    then we don't track any additional groups since they
+               #    would have no reproductive potential
                Ng <- Ng1
           }
           
@@ -104,8 +144,10 @@ FormGroups <- function(Tau, Females, Males, Stochastic, z = NA){
           #    group
           GroupFemales <- rep(0, Ng)
           GroupMales <- rep(0, Ng)
-          GroupFemales[1:Ng1] <- ExpectedFem
-          GroupMales[1:Ng1] <- ExpectedMale
+          if(Ng1 > 0){
+               GroupFemales[1:Ng1] <- ExpectedFem
+               GroupMales[1:Ng1] <- ExpectedMale
+          }
           if(Ng > Ng1){
                GroupFemales[Ng] <- FemFinal
                GroupMales[Ng] <- MaleFinal
@@ -129,7 +171,9 @@ FormGroups <- function(Tau, Females, Males, Stochastic, z = NA){
 #    M_init -- The initial number of males
 #    ReturnN -- A flag to indicate whether to return just the vector of population
 #              sizes (TRUE) or the vectors of male and female abundances (FALSE)
-Deterministic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
+#    RemainderMortality -- A boolean indicator to pass to the FormGroups function
+Deterministic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN,
+                          RemainderMortality){
      # Initialize population vectors
      N <- rep(0, NumGens)
      Fem <- rep(0, NumGens)
@@ -144,9 +188,10 @@ Deterministic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN
      
      # Now loop through the generations
      while((t < NumGens) & (!Extinct)){
-          # First form groups "deterministically"
+          # First form groups deterministically
           GroupedPop <- FormGroups(Tau = Tau, Females = Fem[t],
-                                   Males = M[t], Stochastic = FALSE, z = z)
+                                   Males = M[t], Stochastic = FALSE, z = z,
+                                   RemainderMortality = RemainderMortality)
           Ng <- dim(GroupedPop)[2]
           GroupFemales <- GroupedPop[1,]
           GroupMales <- GroupedPop[2,]
@@ -156,19 +201,30 @@ Deterministic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN
           MatedFems <- MatingFemales(ms = ms, Ng = Ng, GroupMales = GroupMales, 
                                      GroupFemales = GroupFemales)
           
+          # Determine the realized density independent per capita growth rate
+          #    for each group (i.e. account for any groups with size < tau)
+          GroupSizes <- GroupFemales + GroupMales
+          GroupAdjust <- GroupSizes / Tau
+          
           # Calculate the expected population size in the next generation and
-          #    use it to draw the realized population size from a Poisson 
-          #    distribution
-          ExpectedPopSize <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+          #    use it to calculate the realized (rounded) population size 
+          ExpectedPopSize <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
           N[t+1] <- round(ExpectedPopSize)
           
           # Determine the stochastic sex ratio of next generation's population
           Fem[t+1] <- round(N[t+1] * z)
           M[t+1] <- N[t+1] - Fem[t+1]
           
-          # Finally, check for extinction conditions and advance t
-          if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
-               Extinct <- TRUE
+          # Finally, check for extinction conditions and advance t. The exact
+          #    extinction conditions will depend on RemainderMortality
+          if(RemainderMortality == TRUE){
+               if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
+          }else{
+               if((Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
           }
           t <- t + 1
      }
@@ -194,7 +250,9 @@ Deterministic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN
 #    M_init -- The initial number of males
 #    ReturnN -- A flag to indicate whether to return just the vector of population
 #              sizes (TRUE) or the vectors of male and female abundances (FALSE)
-Demographic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
+#    RemainderMortality -- A boolean indicator to pass to the FormGroups function
+Demographic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN,
+                        RemainderMortality){
      # Initialize population vectors
      N <- rep(0, NumGens)
      Fem <- rep(0, NumGens)
@@ -209,9 +267,10 @@ Demographic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
      
      # Now loop through the generations
      while((t < NumGens) & (!Extinct)){
-          # First form groups "deterministically"
+          # First form groups deterministically
           GroupedPop <- FormGroups(Tau = Tau, Females = Fem[t], Males = M[t], 
-                                   Stochastic = FALSE, z = z)
+                                   Stochastic = FALSE, z = z, 
+                                   RemainderMortality = RemainderMortality)
           Ng <- dim(GroupedPop)[2]
           GroupFemales <- GroupedPop[1,]
           GroupMales <- GroupedPop[2,]
@@ -221,19 +280,31 @@ Demographic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
           MatedFems <- MatingFemales(ms = ms, Ng = Ng, GroupMales = GroupMales, 
                                      GroupFemales = GroupFemales)
           
+          # Determine the realized density independent per capita growth rate
+          #    for each group (i.e. account for any groups with size < tau)
+          GroupSizes <- GroupFemales + GroupMales
+          GroupAdjust <- GroupSizes / Tau
+          
           # Calculate the expected population size in the next generation and
           #    use it to draw the realized population size from a Poisson 
           #    distribution
-          ExpectedPopSize <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+          ExpectedPopSize <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
           N[t+1] <- rpois(n = 1, lambda = ExpectedPopSize)
           
           # Determine the stochastic sex ratio of next generation's population
           Fem[t+1] <- round(N[t+1] * z)
           M[t+1] <- N[t+1] - Fem[t+1]
           
-          # Finally, check for extinction conditions and advance t
-          if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
-               Extinct <- TRUE
+          # Finally, check for extinction conditions and advance t. The exact
+          #    extinction conditions will depend on RemainderMortality
+          if(RemainderMortality == TRUE){
+               if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
+          }else{
+               if((Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
           }
           t <- t + 1
      }
@@ -260,7 +331,9 @@ Demographic <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
 #    M_init -- The initial number of males
 #    ReturnN -- A flag to indicate whether to return just the vector of population
 #              sizes (TRUE) or the vectors of male and female abundances (FALSE)
-SexRatio <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
+#    RemainderMortality -- A boolean indicator to pass to the FormGroups function
+SexRatio <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN,
+                     RemainderMortality){
      # Initialize population vectors
      N <- rep(0, NumGens)
      Fem <- rep(0, NumGens)
@@ -277,7 +350,8 @@ SexRatio <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
      while((t < NumGens) & (!Extinct)){
           # First form groups "deterministically"
           GroupedPop <- FormGroups(Tau = Tau, Females = Fem[t], Males = M[t], 
-                                   Stochastic = FALSE, z = z)
+                                   Stochastic = FALSE, z = z, 
+                                   RemainderMortality = RemainderMortality)
           Ng <- dim(GroupedPop)[2]
           GroupFemales <- GroupedPop[1,]
           GroupMales <- GroupedPop[2,]
@@ -287,10 +361,15 @@ SexRatio <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
           MatedFems <- MatingFemales(ms = ms, Ng = Ng, GroupMales = GroupMales, 
                                      GroupFemales = GroupFemales)
           
+          # Determine the realized density independent per capita growth rate
+          #    for each group (i.e. account for any groups with size < tau)
+          GroupSizes <- GroupFemales + GroupMales
+          GroupAdjust <- GroupSizes / Tau
+          
           # Calculate the expected population size in the next generation and
           #    use it to draw the realized population size from a Poisson 
           #    distribution
-          ExpectedPopSize <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+          ExpectedPopSize <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
           N[t+1] <- rpois(n = 1, lambda = ExpectedPopSize)
           
           # Determine the stochastic sex ratio of next generation's population
@@ -298,9 +377,16 @@ SexRatio <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
           Fem[t+1] <- sum(NewFemales)
           M[t+1] <- N[t+1] - Fem[t+1]
           
-          # Finally, check for extinction conditions and advance t
-          if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
-               Extinct <- TRUE
+          # Finally, check for extinction conditions and advance t. The exact
+          #    extinction conditions will depend on RemainderMortality
+          if(RemainderMortality == TRUE){
+               if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
+          }else{
+               if((Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
           }
           t <- t + 1
      }
@@ -318,7 +404,8 @@ SexRatio <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
 #    stochasticity in group formation, but a deterministic sex ratio.
 # Arguments:
 #    All arguments are the same as in the SexRatio model
-GroupFormation <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
+GroupFormation <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN,
+                           RemainderMortality){
      # Initialize population vectors
      N <- rep(0, NumGens)
      Fem <- rep(0, NumGens)
@@ -335,7 +422,8 @@ GroupFormation <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, Return
      while((t < NumGens) & (!Extinct)){
           # First form groups stochasticly
           GroupedPop <- FormGroups(Tau = Tau, Females = Fem[t], Males = M[t], 
-                                   Stochastic = TRUE)
+                                   Stochastic = TRUE, 
+                                   RemainderMortality = RemainderMortality)
           Ng <- dim(GroupedPop)[2]
           GroupFemales <- GroupedPop[1,]
           GroupMales <- GroupedPop[2,]
@@ -345,19 +433,31 @@ GroupFormation <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, Return
           MatedFems <- MatingFemales(ms = ms, Ng = Ng, GroupMales = GroupMales, 
                                      GroupFemales = GroupFemales)
           
+          # Determine the realized density independent per capita growth rate
+          #    for each group (i.e. account for any groups with size < tau)
+          GroupSizes <- GroupFemales + GroupMales
+          GroupAdjust <- GroupSizes / Tau
+          
           # Calculate the expected population size in the next generation and
           #    use it to draw the realized population size from a Poisson 
           #    distribution
-          ExpectedPopSize <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+          ExpectedPopSize <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
           N[t+1] <- rpois(n = 1, lambda = ExpectedPopSize)
           
           # Determine the sex ratio of next generation's population
           Fem[t+1] <- round(N[t+1] * z)
           M[t+1] <- N[t+1] - Fem[t+1]
           
-          # Finally, check for extinction conditions and advance t
-          if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
-               Extinct <- TRUE
+          # Finally, check for extinction conditions and advance t. The exact
+          #    extinction conditions will depend on RemainderMortality
+          if(RemainderMortality == TRUE){
+               if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
+          }else{
+               if((Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
           }
           t <- t + 1
      }
@@ -375,7 +475,8 @@ GroupFormation <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, Return
 #    stochasticity in group formation, and a stochastic sex ratio.
 # Arguments:
 #    All arguments are the same as in the SexRatio model
-Full <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
+Full <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN,
+                 RemainderMortality){
      # Initialize population vectors
      N <- rep(0, NumGens)
      Fem <- rep(0, NumGens)
@@ -392,7 +493,7 @@ Full <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
      while((t < NumGens) & (!Extinct)){
           # First form groups stochasticly
           GroupedPop <- FormGroups(Tau = Tau, Females = Fem[t], Males = M[t], 
-                                   Stochastic = TRUE)
+                                   Stochastic = TRUE, RemainderMortality = RemainderMortality)
           Ng <- dim(GroupedPop)[2]
           GroupFemales <- GroupedPop[1,]
           GroupMales <- GroupedPop[2,]
@@ -402,10 +503,15 @@ Full <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
           MatedFems <- MatingFemales(ms = ms, Ng = Ng, GroupMales = GroupMales, 
                                      GroupFemales = GroupFemales)
           
+          # Determine the realized density independent per capita growth rate
+          #    for each group (i.e. account for any groups with size < tau)
+          GroupSizes <- GroupFemales + GroupMales
+          GroupAdjust <- GroupSizes / Tau
+          
           # Calculate the expected population size in the next generation and
           #    use it to draw the realized population size from a Poisson 
           #    distribution
-          ExpectedPopSize <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+          ExpectedPopSize <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
           N[t+1] <- rpois(n = 1, lambda = ExpectedPopSize)
           
           # Determine the sex ratio of next generation's population
@@ -413,9 +519,16 @@ Full <- function(ms, R, alpha, z, Tau, NumGens, F_init, M_init, ReturnN){
           Fem[t+1] <- sum(NewFemales)
           M[t+1] <- N[t+1] - Fem[t+1]
           
-          # Finally, check for extinction conditions and advance t
-          if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
-               Extinct <- TRUE
+          # Finally, check for extinction conditions and advance t. The exact
+          #    extinction conditions will depend on RemainderMortality
+          if(RemainderMortality == TRUE){
+               if((N[t+1] < Tau) | (Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
+          }else{
+               if((Fem[t+1] == 0) | (M[t+1] == 0)){
+                    Extinct <- TRUE
+               }
           }
           t <- t + 1
      }

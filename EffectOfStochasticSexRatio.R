@@ -32,7 +32,7 @@ for(j in 1:length(TauSeq)){
           ########## First calculate the expected population size for a deterministic sex ratio
           # Form groups and calculate Nhat
           Groups <- FormGroups(Tau = TauSeq[j], Females = Nfem, Males = Nmale, 
-                               Stochastic = FALSE, z = z)
+                               Stochastic = FALSE, z = z, RemainderMortality = FALSE)
           Ng <- dim(Groups)[2]
           Nf <- Groups[1,]
           Nm <- Groups[2,]
@@ -40,7 +40,9 @@ for(j in 1:length(TauSeq)){
           # Determine the number of mating females in the population
           MatedFems <- MatingFemales(ms = ms, Ng = Ng, GroupMales = Nm, GroupFemales = Nf)
           # Now calculate and store Nhat
-          DetermNhat[j,ms] <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+          GroupSizes <- Nf + Nm
+          GroupAdjust <- GroupSizes / TauSeq[j]
+          DetermNhat[j,ms] <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
           
           ########## Now simulate stochastic sex ratios and store those values
           for(s in 1:Nsims){
@@ -49,13 +51,15 @@ for(j in 1:length(TauSeq)){
                Stoch_Nmale <- Nt - Stoch_Nfem
                # Now deterministically form groups and calculate Nhat
                Groups <- FormGroups(Tau = TauSeq[j], Females = Stoch_Nfem, Males = Stoch_Nmale, 
-                                    Stochastic = FALSE, z = z)
+                                    Stochastic = FALSE, z = z, RemainderMortality = FALSE)
                Ng <- dim(Groups)[2]
                Nf <- Groups[1,]
                Nm <- Groups[2,]
                AllPop <- sum(Nf) + sum(Nm)
                MatedFems <- MatingFemales(ms = ms, Ng = Ng, GroupMales = Nm, GroupFemales = Nf)
-               StochNhat[j,ms,s] <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+               GroupSizes <- Nf + Nm
+               GroupAdjust <- GroupSizes / TauSeq[j]
+               StochNhat[j,ms,s] <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
                
                # Print out a progress indicator
                Progress <- round((Counter / TotalIterations) * 100, digits = 1)

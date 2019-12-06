@@ -33,7 +33,7 @@ for(i in 1:nrow(InitPop)){
                ########## First calculate the expected population size for deterministic group formation
                DetermGroups <- FormGroups(Tau = TauSeq[j], Females = InitPop[i,1],
                                           Males = InitPop[i,2], Stochastic = FALSE,
-                                          z = z)
+                                          z = z, RemainderMortality = FALSE)
                DetermNg <- dim(DetermGroups)[2]
                DetermNf <- DetermGroups[1,]
                DetermNm <- DetermGroups[2,]
@@ -42,12 +42,15 @@ for(i in 1:nrow(InitPop)){
                MatedFems <- MatingFemales(ms = ms, Ng = DetermNg, GroupMales = DetermNm, 
                                           GroupFemales = DetermNf)
                # Now calculate and store Nhat
-               DetermNhat[i,j,ms] <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+               GroupSizes <- DetermNf + DetermNm
+               GroupAdjust <- GroupSizes / TauSeq[j]
+               DetermNhat[i,j,ms] <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
                
                ########## Now simulate stochastic group formation and store those values
                for(s in 1:NumSims){
                     StochGroups <- FormGroups(Tau = TauSeq[j], Females = InitPop[i,1],
-                                               Males = InitPop[i,2], Stochastic = TRUE)
+                                              Males = InitPop[i,2], Stochastic = TRUE,
+                                              RemainderMortality = FALSE)
                     StochNg <- dim(StochGroups)[2]
                     StochNf <- StochGroups[1,]
                     StochNm <- StochGroups[2,]
@@ -56,7 +59,9 @@ for(i in 1:nrow(InitPop)){
                     MatedFems <- MatingFemales(ms = ms, Ng = StochNg, GroupMales = StochNm, 
                                                GroupFemales = StochNf)
                     # Now calculate and store Nhat
-                    StochNhat[i,j,ms,s] <- MatedFems * (R/z) * exp(-1 * alpha * AllPop)
+                    GroupSizes <- StochNf + StochNm
+                    GroupAdjust <- GroupSizes / TauSeq[j]
+                    StochNhat[i,j,ms,s] <- (sum((MatedFems*GroupAdjust*R)) / z) * exp(-1 * alpha * AllPop)
                     
                     # Print out a progress indicator
                     Progress <- round((Counter / TotalIterations) * 100, digits = 1)

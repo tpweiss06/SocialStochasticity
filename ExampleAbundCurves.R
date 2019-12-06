@@ -15,28 +15,28 @@ NumGens <- 100
 F_init <- 12
 M_init <- 12
 Tau <- TauSeq[5]
-ms <- 2
+ms <- 3
 
 # Create objects to hold the results for each model
 PopSize <- matrix(NA, nrow = 5, ncol = NumGens)
-rownames(PopSize) <- c("Deterministic", "Demographic", "SexRatio", "GroupFormation", "Full")
+rownames(PopSize) <- c("Deterministic", "Demographic", "SexRatio", "Group Formation", "Full")
 
 # First perform the model runs
 PopSize[1,] <- Deterministic(ms = ms, R = R0, alpha = alpha, z = z, Tau = Tau, 
                              NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                             ReturnN = TRUE)
+                             ReturnN = TRUE, RemainderMortality = FALSE)
 PopSize[2,] <- Demographic(ms = ms, R = R0, alpha = alpha, z = z, Tau = Tau, 
                            NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                           ReturnN = TRUE)
+                           ReturnN = TRUE, RemainderMortality = FALSE)
 PopSize[3,] <- SexRatio(ms = ms, R = R0, alpha = alpha, z = z, Tau = Tau, 
                         NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                        ReturnN = TRUE)
+                        ReturnN = TRUE, RemainderMortality = FALSE)
 PopSize[4,] <- GroupFormation(ms = ms, R = R0, alpha = alpha, z = z, Tau = Tau, 
                               NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                              ReturnN = TRUE)
+                              ReturnN = TRUE, RemainderMortality = FALSE)
 PopSize[5,] <- Full(ms = ms, R = R0, alpha = alpha, z = z, Tau = Tau, 
                     NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                    ReturnN = TRUE)
+                    ReturnN = TRUE, RemainderMortality = FALSE)
 
 # Now create the figure
 # Size
@@ -63,8 +63,8 @@ pdf(file = "Figures/ExampleRuns.pdf", width = 6, height = 4, onefile = FALSE, pa
                 lwd = StochLineWidth)
      }
      # Finally add a legend
-     legend(x = "bottom", legend = row.names(PopSize), col = c("black", ModelColorSeq),
-            lty = c(1, ModelLineSeq), lwd = 1.25, cex = LegSize, bty = "n", inset = -0.025,
+     legend(x = 15, y = 30, legend = row.names(PopSize), col = c("black", ModelColorSeq),
+            lty = c(1, ModelLineSeq), lwd = 1.25, cex = LegSize, bty = "n", inset = 0,
             ncol = 2)
 dev.off()
 

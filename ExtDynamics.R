@@ -43,19 +43,19 @@ SimFunction <- function(i){
           # Demographic stochasticity model
           TempResults[1,] <- Demographic(ms = ms, R = R, alpha = alpha, z = z, Tau = Tau, 
                                            NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                                           ReturnN = TRUE)
+                                           ReturnN = TRUE, RemainderMortality = FALSE)
           # Sex ratio stochasticity model
           TempResults[2,] <- SexRatio(ms = ms, R = R, alpha = alpha, z = z, Tau = Tau, 
                                         NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                                        ReturnN = TRUE)
+                                        ReturnN = TRUE, RemainderMortality = FALSE)
           # Group formation stochasticity model
           TempResults[3,] <- GroupFormation(ms = ms, R = R, alpha = alpha, z = z, Tau = Tau, 
                                               NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                                              ReturnN = TRUE)
+                                              ReturnN = TRUE, RemainderMortality = FALSE)
           # Full model
           TempResults[4,] <- Full(ms = ms, R = R, alpha = alpha, z = z, Tau = Tau, 
                                     NumGens = NumGens, F_init = F_init, M_init = M_init, 
-                                    ReturnN = TRUE)
+                                    ReturnN = TRUE, RemainderMortality = FALSE)
           # Now store the extinction results and times
           for(m in 1:4){
                if(TempResults[m,NumGens] == 0){
@@ -94,7 +94,7 @@ for(i in 1:length(SimData)){
      CurMateSys <- SimMateSys[i]
      CurTau <- SimTauVec[i]
      TauIndex <- which(TauSeq == CurTau)
-     ExtProb[CurMateSys, , TauIndexu] <- SimData[[i]]$ExtProp
+     ExtProb[CurMateSys, , TauIndex] <- SimData[[i]]$ExtProp
      ExtTime[CurMateSys, , TauIndex,] <- SimData[[i]]$ExtTime
 }
 
